@@ -1,4 +1,26 @@
 document.addEventListener('DOMContentLoaded', () => {
+
+  // ==========================================================================
+  // HOME PAGE REDIRECT ON REFRESH
+  // ==========================================================================
+  const navigationEntries = performance.getEntriesByType("navigation");
+  const isReload = (navigationEntries.length > 0 && navigationEntries[0].type === "reload") || 
+                   (window.performance && window.performance.navigation && window.performance.navigation.type === 1);
+
+  if (isReload) {
+    if (history.scrollRestoration) {
+      history.scrollRestoration = 'manual';
+    }
+    if (window.location.hash) {
+      history.replaceState(null, null, window.location.pathname + window.location.search);
+    }
+    window.scrollTo(0, 0);
+    // Force scroll back to top after browser default anchor layout paint completes
+    setTimeout(() => {
+      window.scrollTo(0, 0);
+    }, 50);
+  }
+
   
   // ==========================================================================
   // MOBILE NAVIGATION MENU
@@ -153,7 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return re.test(String(email).toLowerCase());
   };
 
-  contactForm.addEventListener('submit', (e) => {
+  contactForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     feedbackContainer.textContent = '';
     let isValid = true;
@@ -201,23 +223,52 @@ document.addEventListener('DOMContentLoaded', () => {
       feedbackContainer.className = 'form-feedback';
       feedbackContainer.textContent = '';
 
-      // Simulate network request
-      setTimeout(() => {
+      try {
+        const response = await fetch('/api/contact', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            name: inputs.name.value.trim(),
+            email: inputs.email.value.trim(),
+            subject: inputs.subject.value.trim(),
+            message: inputs.message.value.trim()
+          })
+        });
+
+        const data = await response.json();
+
         submitBtn.disabled = false;
         submitBtn.textContent = 'Send Message';
-        
-        // Show success state
-        feedbackContainer.className = 'form-feedback success';
-        feedbackContainer.textContent = 'Thank you. Your message has been sent successfully.';
-        
-        // Reset form inputs
-        contactForm.reset();
-        
-        // Clear message after 5 seconds
-        setTimeout(() => {
-          feedbackContainer.textContent = '';
-        }, 5000);
-      }, 1200);
+
+        if (response.ok && data.success) {
+          // Show success state
+          feedbackContainer.className = 'form-feedback success';
+          feedbackContainer.textContent = data.message || 'Thank you. Your message has been sent successfully.';
+          
+          // Reset form inputs
+          contactForm.reset();
+        } else {
+          // Show error state
+          feedbackContainer.className = 'form-feedback error';
+          feedbackContainer.style.color = '#EF4444';
+          feedbackContainer.textContent = data.message || 'Failed to send message. Please try again.';
+        }
+      } catch (err) {
+        console.error('Contact form submission error:', err);
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send Message';
+        feedbackContainer.className = 'form-feedback error';
+        feedbackContainer.style.color = '#EF4444';
+        feedbackContainer.textContent = 'A network error occurred. Please try again later.';
+      }
+
+      // Clear message after 5 seconds
+      setTimeout(() => {
+        feedbackContainer.textContent = '';
+        feedbackContainer.style.color = '';
+      }, 5000);
     }
   });
 
