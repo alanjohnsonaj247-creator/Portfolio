@@ -3,7 +3,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   server: {
     watch: {
-      ignored: ['**/assets/**']
+      ignored: ['**/assets/**', '**/public/**', '**/*.pdf']
     }
   }
 });
